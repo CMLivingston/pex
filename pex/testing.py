@@ -287,7 +287,7 @@ def bootstrap_python_installer():
     for _ in range(3):
       try:
         subprocess.call(['git', 'clone', 'https://github.com/pyenv/pyenv.git', install_location])
-      except StandardError:
+      except Exception:
         continue
       else:
         break
