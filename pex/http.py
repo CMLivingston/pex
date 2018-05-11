@@ -111,7 +111,6 @@ class Context(AbstractClass):
     if os.path.exists(target):
       # Assume that if the local file already exists, it is safe to use.
       return target
-
     with TRACER.timed('Fetching %s' % link.url, V=2):
       target_tmp = '%s.%s' % (target, uuid.uuid4())
       with contextlib.closing(self.open(link)) as in_fp:
