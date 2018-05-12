@@ -71,7 +71,8 @@ def find_compatible_interpreters(pex_python_path, compatibility_constraints):
     for binary in pex_python_path.split(os.pathsep):
       try:
         interpreters.append(PythonInterpreter.from_binary(binary))
-      except Executor.ExecutionError:
+      except Executor.ExecutionError as e:
+        print('STDERR in PEX_BOOTSTRAPPER: {}'.format(e.msg), file=sys.stderr)
         print("Python interpreter %s in PEX_PYTHON_PATH failed to load properly." % binary,
           file=sys.stderr)
     if not interpreters:

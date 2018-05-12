@@ -3,7 +3,7 @@
 
 """pex support for interacting with interpreters."""
 
-from __future__ import absolute_import
+from __future__ import absolute_import, print_function
 
 import os
 import re
@@ -235,7 +235,9 @@ class PythonInterpreter(object):
   def _from_binary_external(cls, binary, path_extras):
     environ = cls.sanitized_environment()
     environ['PYTHONPATH'] = ':'.join(path_extras)
-    stdout, _ = Executor.execute([binary], env=environ, stdin_payload=ID_PY)
+    stdout, stderr = Executor.execute([binary], env=environ, stdin_payload=ID_PY)
+    print('INTERPRETER_STDOUT: {}'.format(stdout), file=sys.stderr)
+    print('INTERPRETER_STDERR: {}'.format(stderr), file=sys.stderr)
     output = stdout.splitlines()
     if len(output) == 0:
       raise cls.IdentificationError('Could not establish identity of %s' % binary)
@@ -284,7 +286,9 @@ class PythonInterpreter(object):
     """
     pythons = []
     for path in paths:
+      print('FOUND PATH: {}'.format(paths), file=sys.stderr)
       for fn in cls.expand_path(path):
+        print('EXPANDED: {}'.format(paths), file=sys.stderr)
         basefile = os.path.basename(fn)
         if any(matcher.match(basefile) is not None for matcher in cls.REGEXEN):
           try:
