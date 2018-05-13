@@ -7,6 +7,7 @@ import random
 import subprocess
 import sys
 import tempfile
+import traceback
 from collections import namedtuple
 from textwrap import dedent
 
@@ -17,6 +18,7 @@ from .executor import Executor
 from .installer import EggInstaller, Packager
 from .pex_builder import PEXBuilder
 from .util import DistributionHelper, named_temporary_file
+from .version import SETUPTOOLS_REQUIREMENT
 
 
 @contextlib.contextmanager
@@ -203,11 +205,14 @@ def write_simple_pex(td, exe_contents, dists=None, sources=None, coverage=False)
   return pb
 
 
-class IntegResults(namedtuple('results', 'output return_code exception')):
+class IntegResults(namedtuple('results', 'output return_code exception traceback')):
   """Convenience object to return integration run results."""
 
   def assert_success(self):
-    assert self.exception is None and self.return_code is None
+    if not (self.exception is None and self.return_code is None):
+      raise AssertionError('integration test failed: return_code=%s, exception=%r, traceback=%s' % (
+        self.return_code, self.exception, self.traceback
+      ))
 
   def assert_failure(self):
     assert self.exception or self.return_code
@@ -227,16 +232,20 @@ def run_pex_command(args, env=None):
     return mock_logger
 
   exception = None
+  tb = None
   error_code = None
   output = []
   log.set_logger(logger_callback(output))
+
   try:
     main(args=args)
   except SystemExit as e:
     error_code = e.code
   except Exception as e:
     exception = e
-  return IntegResults(output, error_code, exception)
+    tb = traceback.format_exc()
+
+  return IntegResults(output, error_code, exception, tb)
 
 
 # TODO(wickman) Why not PEX.run?
@@ -280,29 +289,34 @@ def combine_pex_coverage(coverage_file_iter):
   return combined.filename
 
 
-def bootstrap_python_installer():
-  install_location = os.path.join(os.getcwd(), '.pyenv_test')
-  binary_path = os.path.join(install_location, 'bin', 'pyenv')
-  if not os.path.exists(binary_path):
-    safe_rmtree(install_location)
-    for _ in range(3):
-      try:
-        subprocess.check_call(
-          ['git', 'clone', 'https://github.com/pyenv/pyenv.git', install_location]
-        )
-      except subprocess.CalledProcessError as e:
-        print('caught exception: %r' % e)
-        continue
-      else:
-        break
+def bootstrap_python_installer(dest):
+  safe_rmtree(dest)
+  for _ in range(3):
+    try:
+      subprocess.check_call(
+        ['git', 'clone', 'https://github.com/pyenv/pyenv.git', dest]
+      )
+    except subprocess.CalledProcessError as e:
+      print('caught exception: %r' % e)
+      continue
     else:
-      raise RuntimeError("Helper method could not clone pyenv from git after 3 tries")
+      break
+  else:
+    raise RuntimeError("Helper method could not clone pyenv from git after 3 tries")
 
 
 def ensure_python_interpreter(version):
-  bootstrap_python_installer()
-  install_location = os.path.join(os.getcwd(), '.pyenv_test/versions', version)
-  if not os.path.exists(install_location):
-    os.environ['PYENV_ROOT'] = os.path.join(os.getcwd(), '.pyenv_test')
-    subprocess.call([os.path.join(os.getcwd(), '.pyenv_test/bin/pyenv'), 'install', version])
-  return os.path.join(install_location, 'bin', 'python' + version[0:3])
+  pyenv_root = os.path.join(os.getcwd(), '.pyenv_test')
+  interpreter_location = os.path.join(pyenv_root, 'versions', version)
+  pyenv = os.path.join(pyenv_root, 'bin', 'pyenv')
+  pip = os.path.join(interpreter_location, 'bin', 'pip')
+
+  if not os.path.exists(pyenv):
+    bootstrap_python_installer(pyenv_root)
+
+  if not os.path.exists(interpreter_location):
+    os.environ['PYENV_ROOT'] = pyenv_root
+    subprocess.call([pyenv, 'install', version])
+    subprocess.call([pip, 'install', SETUPTOOLS_REQUIREMENT])
+
+  return os.path.join(interpreter_location, 'bin', 'python' + version[0:3])
