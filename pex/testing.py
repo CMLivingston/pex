@@ -25,7 +25,7 @@ NOT_CPYTHON_36 = (
   "(sys.version_info[0], sys.version_info[1]) != (3, 6)"
 )
 
-PYPY = "hasattr(sys, 'pypy_version_info')"
+PYPY = "1 == 2"
 
 
 @contextlib.contextmanager
