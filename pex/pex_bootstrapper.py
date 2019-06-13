@@ -130,9 +130,7 @@ def maybe_reexec_pex(compatibility_constraints):
                'PEX_PYTHON_PATH="%s", COMPATIBILITY_CONSTRAINTS="%s"'
                % (cmdline, sys.executable, ENV.PEX_PYTHON, ENV.PEX_PYTHON_PATH,
                   compatibility_constraints))
-    ENV.delete('PEX_PYTHON')
-    ENV.delete('PEX_PYTHON_PATH')
-    os.environ['SHOULD_EXIT_BOOTSTRAP_REEXEC'] = '1'
+    ENV.set('SHOULD_EXIT_BOOTSTRAP_REEXEC', '1')
     os.execve(target, cmdline, ENV.copy())
 
 
